@@ -1,0 +1,51 @@
+[
+  {
+    "id": "title-default",
+    "name": "제목 슬라이드",
+    "visualType": "title",
+    "description": "중앙 정렬 제목 + 부제목",
+    "defaultTextPosition": 5
+  },
+  {
+    "id": "list-default",
+    "name": "불릿 목록",
+    "visualType": "list",
+    "description": "제목 + 불릿 포인트 목록",
+    "defaultTextPosition": 4
+  },
+  {
+    "id": "chart-default",
+    "name": "차트/데이터",
+    "visualType": "chart",
+    "description": "제목 + 데이터 시각화 영역",
+    "defaultTextPosition": 5
+  },
+  {
+    "id": "comparison-default",
+    "name": "비교",
+    "visualType": "comparison",
+    "description": "좌우 2컬럼 비교",
+    "defaultTextPosition": 5
+  },
+  {
+    "id": "quote-default",
+    "name": "인용문",
+    "visualType": "quote",
+    "description": "큰 인용문 + 출처",
+    "defaultTextPosition": 5
+  },
+  {
+    "id": "image-default",
+    "name": "이미지 중심",
+    "visualType": "image",
+    "description": "이미지 배경 + 오버레이 텍스트",
+    "defaultTextPosition": 7
+  },
+  {
+    "id": "timeline-default",
+    "name": "타임라인",
+    "visualType": "timeline",
+    "description": "순서/단계별 흐름",
+    "defaultTextPosition": 5
+  }
+]

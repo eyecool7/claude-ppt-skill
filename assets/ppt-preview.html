@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PPT Slide Preview</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f0f0f;
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* --- YouTube Player Frame --- */
+    .yt-container {
+      width: 100%;
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    .yt-player {
+      position: relative;
+      width: 100%;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #000;
+    }
+
+    .yt-viewport {
+      position: relative;
+      width: 100%;
+      padding-bottom: 56.25%; /* 16:9 */
+      overflow: hidden;
+    }
+
+    .yt-viewport-inner {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      display: flex;
+    }
+
+    /* --- Slide Display --- */
+    .slide-display {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      overflow: hidden;
+      transition: background-color 0.3s;
+    }
+
+    .slide-display .slide-image-bg {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+      z-index: 0;
+    }
+
+    .slide-display .slide-image-overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 1;
+    }
+
+    .slide-content {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      height: 100%;
+      padding: 6%;
+      display: flex;
+      flex-direction: column;
+      transition: all 0.3s;
+    }
+
+    .slide-title {
+      font-size: clamp(18px, 3vw, 48px);
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 0.5em;
+      cursor: text;
+      outline: none;
+      min-height: 1.2em;
+    }
+
+    .slide-title:focus {
+      outline: 2px solid rgba(255,255,255,0.4);
+      outline-offset: 4px;
+      border-radius: 4px;
+    }
+
+    .slide-points {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4em;
+    }
+
+    .slide-points li {
+      font-size: clamp(12px, 1.8vw, 28px);
+      line-height: 1.5;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5em;
+    }
+
+    .slide-points li .bullet {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      margin-top: 0.4em;
+      flex-shrink: 0;
+    }
+
+    .slide-points li span[contenteditable] {
+      cursor: text;
+      outline: none;
+    }
+
+    .slide-points li span[contenteditable]:focus {
+      outline: 1px solid rgba(255,255,255,0.3);
+      border-radius: 2px;
+    }
+
+    /* Quote slide */
+    .slide-quote-mark {
+      font-size: clamp(32px, 5vw, 80px);
+      opacity: 0.3;
+      line-height: 1;
+      margin-bottom: -0.2em;
+    }
+
+    .slide-quote-source {
+      font-size: clamp(10px, 1.4vw, 22px);
+      opacity: 0.7;
+      margin-top: 1em;
+    }
+
+    /* --- YouTube Progress Bar --- */
+    .yt-progress {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 4px;
+      background: rgba(255,255,255,0.2);
+      z-index: 10;
+      cursor: pointer;
+    }
+
+    .yt-progress-fill {
+      height: 100%;
+      background: #f00;
+      transition: width 0.3s;
+    }
+
+    .yt-progress:hover {
+      height: 6px;
+    }
+
+    /* --- YouTube Controls --- */
+    .yt-controls {
+      position: absolute;
+      bottom: 8px; left: 12px; right: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 11;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .yt-player:hover .yt-controls {
+      opacity: 1;
+    }
+
+    .yt-btn {
+      background: none;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      font-size: 18px;
+      padding: 4px 8px;
+      opacity: 0.9;
+    }
+
+    .yt-btn:hover { opacity: 1; }
+
+    .yt-time {
+      font-size: 12px;
+      color: rgba(255,255,255,0.7);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .yt-controls-spacer { flex: 1; }
+
+    /* --- Video Info (below player) --- */
+    .yt-info {
+      padding: 12px 0;
+    }
+
+    .yt-info-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      line-height: 1.3;
+    }
+
+    .yt-info-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #aaa;
+    }
+
+    .yt-channel {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 12px;
+    }
+
+    .yt-channel-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .yt-avatar {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: #333;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .yt-channel-name {
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .yt-channel-subs {
+      font-size: 12px;
+      color: #aaa;
+    }
+
+    .yt-subscribe {
+      background: #fff;
+      color: #0f0f0f;
+      border: none;
+      border-radius: 20px;
+      padding: 8px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .yt-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .yt-action-btn {
+      background: #272727;
+      border: none;
+      border-radius: 20px;
+      color: #fff;
+      padding: 8px 16px;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .yt-action-btn:hover { background: #3a3a3a; }
+
+    /* --- Separator --- */
+    .separator {
+      width: 100%;
+      max-width: 1080px;
+      height: 1px;
+      background: #333;
+      margin: 16px auto;
+    }
+
+    /* --- Editor Panel --- */
+    .editor-panel {
+      width: 100%;
+      max-width: 1080px;
+      padding: 0 16px 32px;
+    }
+
+    .editor-section {
+      margin-bottom: 20px;
+    }
+
+    .editor-section-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #aaa;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 10px;
+    }
+
+    /* --- Slide Thumbnails --- */
+    .thumbnails {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 8px 0;
+      scrollbar-width: thin;
+      scrollbar-color: #555 transparent;
+    }
+
+    .thumb {
+      flex-shrink: 0;
+      width: 140px;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: border-color 0.2s, transform 0.2s;
+      background: #1a1a1a;
+    }
+
+    .thumb:hover { border-color: #555; transform: scale(1.03); }
+    .thumb.active { border-color: #fff; }
+
+    .thumb-preview {
+      width: 100%;
+      aspect-ratio: 16/9;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      overflow: hidden;
+      font-size: 8px;
+      line-height: 1.3;
+    }
+
+    .thumb-preview .thumb-title {
+      font-weight: 700;
+      font-size: 9px;
+      margin-bottom: 4px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .thumb-preview .thumb-point {
+      font-size: 7px;
+      opacity: 0.7;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .thumb-label {
+      padding: 4px 8px;
+      font-size: 10px;
+      color: #aaa;
+      text-align: center;
+      border-top: 1px solid #333;
+    }
+
+    /* --- 9-Grid Selector --- */
+    .grid-selector {
+      display: inline-grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+      background: #1a1a1a;
+      border-radius: 8px;
+      padding: 8px;
+    }
+
+    .grid-cell {
+      width: 40px; height: 28px;
+      border: 1px solid #444;
+      border-radius: 4px;
+      background: #222;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      color: #888;
+      transition: all 0.15s;
+    }
+
+    .grid-cell:hover { background: #333; border-color: #666; }
+    .grid-cell.active { background: #f00; border-color: #f00; color: #fff; font-weight: 700; }
+
+    /* --- Theme Selector --- */
+    .theme-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .theme-card {
+      border: 2px solid #333;
+      border-radius: 8px;
+      padding: 10px;
+      cursor: pointer;
+      transition: border-color 0.2s, transform 0.2s;
+      background: #1a1a1a;
+    }
+
+    .theme-card:hover { border-color: #666; transform: translateY(-2px); }
+    .theme-card.active { border-color: #fff; }
+
+    .theme-card-preview {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 6px;
+    }
+
+    .theme-card-preview .swatch {
+      width: 16px; height: 16px;
+      border-radius: 3px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .theme-card-name {
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .theme-card-desc {
+      font-size: 10px;
+      color: #888;
+      margin-top: 2px;
+    }
+
+    /* --- JSON Export --- */
+    .json-export {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 16px;
+      position: relative;
+    }
+
+    .json-export pre {
+      font-family: 'JetBrains Mono', 'SF Mono', monospace;
+      font-size: 11px;
+      color: #ccc;
+      line-height: 1.5;
+      max-height: 300px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .copy-btn {
+      position: absolute;
+      top: 8px; right: 8px;
+      background: #333;
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      padding: 6px 12px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .copy-btn:hover { background: #555; }
+    .copy-btn.copied { background: #2ea043; }
+
+    /* --- Inline Editor Inputs --- */
+    .edit-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .edit-row label {
+      font-size: 12px;
+      color: #aaa;
+      min-width: 60px;
+    }
+
+    .edit-input {
+      flex: 1;
+      background: #222;
+      border: 1px solid #444;
+      border-radius: 6px;
+      color: #fff;
+      padding: 6px 10px;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .edit-input:focus { border-color: #888; }
+
+    .edit-textarea {
+      width: 100%;
+      background: #222;
+      border: 1px solid #444;
+      border-radius: 6px;
+      color: #fff;
+      padding: 8px 10px;
+      font-size: 13px;
+      outline: none;
+      resize: vertical;
+      min-height: 80px;
+      font-family: inherit;
+    }
+
+    .edit-textarea:focus { border-color: #888; }
+
+    .color-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .color-input-wrap input[type="color"] {
+      width: 28px; height: 28px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      padding: 0;
+      background: none;
+    }
+
+    /* --- Responsive --- */
+    @media (max-width: 768px) {
+      .theme-grid { grid-template-columns: repeat(2, 1fr); }
+      .yt-channel { flex-direction: column; align-items: flex-start; gap: 8px; }
+    }
+
+    @media (max-width: 480px) {
+      .theme-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="yt-container">
+  <!-- YouTube Player -->
+  <div class="yt-player" id="ytPlayer">
+    <div class="yt-viewport">
+      <div class="yt-viewport-inner">
+        <div class="slide-display" id="slideDisplay">
+          <div class="slide-content" id="slideContent">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+      </div>
+      <!-- Progress bar -->
+      <div class="yt-progress" id="ytProgress" onclick="onProgressClick(event)">
+        <div class="yt-progress-fill" id="ytProgressFill"></div>
+      </div>
+    </div>
+    <!-- Controls overlay -->
+    <div class="yt-controls">
+      <button class="yt-btn" onclick="prevSlide()">&#9664;&#9664;</button>
+      <button class="yt-btn" id="playBtn" onclick="togglePlay()">&#9654;</button>
+      <button class="yt-btn" onclick="nextSlide()">&#9654;&#9654;</button>
+      <span class="yt-time" id="ytTime">0:00 / 0:00</span>
+      <div class="yt-controls-spacer"></div>
+      <span style="font-size:12px;color:#aaa;" id="slideCounter">1 / 5</span>
+    </div>
+  </div>
+
+  <!-- Video Info -->
+  <div class="yt-info">
+    <div class="yt-info-title" id="videoTitle">PPT Slide Preview</div>
+    <div class="yt-info-meta">
+      <span id="viewCount">0 views</span>
+      <span>&middot;</span>
+      <span id="uploadDate">Just now</span>
+    </div>
+  </div>
+
+  <div class="yt-channel">
+    <div class="yt-channel-left">
+      <div class="yt-avatar">J</div>
+      <div>
+        <div class="yt-channel-name">Claude PPT</div>
+        <div class="yt-channel-subs">AI Generated</div>
+      </div>
+    </div>
+    <button class="yt-subscribe">Subscribe</button>
+  </div>
+
+  <div class="yt-actions">
+    <button class="yt-action-btn">&#128077; Like</button>
+    <button class="yt-action-btn">&#128078; Dislike</button>
+    <button class="yt-action-btn">&#8599; Share</button>
+    <button class="yt-action-btn" onclick="exportJson()">&#128190; Export JSON</button>
+  </div>
+</div>
+
+<div class="separator"></div>
+
+<!-- Editor Panel -->
+<div class="editor-panel">
+
+  <!-- Slide Thumbnails -->
+  <div class="editor-section">
+    <div class="editor-section-title">Slides</div>
+    <div class="thumbnails" id="thumbnails"></div>
+  </div>
+
+  <!-- Theme Selector -->
+  <div class="editor-section">
+    <div class="editor-section-title">Theme</div>
+    <div class="theme-grid" id="themeGrid"></div>
+  </div>
+
+  <!-- 9-Grid Position -->
+  <div class="editor-section">
+    <div class="editor-section-title">Text Position (9-Grid)</div>
+    <div style="display:flex;align-items:flex-start;gap:20px;">
+      <div class="grid-selector" id="gridSelector"></div>
+      <div style="font-size:12px;color:#888;line-height:1.6;">
+        <div>1=Left Top &nbsp; 2=Center Top &nbsp; 3=Right Top</div>
+        <div>4=Left Mid &nbsp; 5=Center (default) &nbsp; 6=Right Mid</div>
+        <div>7=Left Bot &nbsp; 8=Center Bot &nbsp; 9=Right Bot</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide Editor -->
+  <div class="editor-section">
+    <div class="editor-section-title">Edit Slide <span id="editSlideNum"></span></div>
+    <div class="edit-row">
+      <label>Title</label>
+      <input class="edit-input" id="editTitle" oninput="onEditTitle(this.value)" />
+    </div>
+    <div class="edit-row">
+      <label>Template</label>
+      <select class="edit-input" id="editTemplate" onchange="onEditTemplate(this.value)">
+        <option value="title-default">Title</option>
+        <option value="list-default">List</option>
+        <option value="chart-default">Chart</option>
+        <option value="comparison-default">Comparison</option>
+        <option value="quote-default">Quote</option>
+        <option value="image-default">Image</option>
+        <option value="timeline-default">Timeline</option>
+      </select>
+    </div>
+    <div style="margin-bottom:8px;">
+      <label style="font-size:12px;color:#aaa;">Points (one per line)</label>
+      <textarea class="edit-textarea" id="editPoints" oninput="onEditPoints(this.value)"></textarea>
+    </div>
+    <div class="edit-row">
+      <label>Image URL</label>
+      <input class="edit-input" id="editImageUrl" placeholder="https://..." oninput="onEditImageUrl(this.value)" />
+    </div>
+    <div class="edit-row">
+      <label>Colors</label>
+      <div class="color-input-wrap">
+        <span style="font-size:11px;color:#aaa;">BG</span>
+        <input type="color" id="colorBg" onchange="onColorChange()" />
+        <span style="font-size:11px;color:#aaa;">Accent</span>
+        <input type="color" id="colorAccent" onchange="onColorChange()" />
+        <span style="font-size:11px;color:#aaa;">Text</span>
+        <input type="color" id="colorFg" onchange="onColorChange()" />
+      </div>
+    </div>
+  </div>
+
+  <!-- JSON Export -->
+  <div class="editor-section">
+    <div class="editor-section-title">JSON Output (Copy to Claude Code)</div>
+    <div class="json-export">
+      <button class="copy-btn" id="copyBtn" onclick="copyJson()">Copy</button>
+      <pre id="jsonOutput"></pre>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ===== THEMES =====
+const THEMES = {
+  'tech-precision': {
+    name: 'Tech Precision',
+    desc: 'Data is aesthetics. Monospace, deep dark.',
+    bg: '#0A0E17', foreground: '#F9FAFB', accent: '#00FF41',
+    fontHeading: 'JetBrains Mono', fontBody: 'Inter',
+  },
+  'neon-flux': {
+    name: 'Neon Flux',
+    desc: 'Future UI. Neon glow, glassmorphism.',
+    bg: '#05050F', foreground: '#F0F0FF', accent: '#00F0FF',
+    fontHeading: 'Space Grotesk', fontBody: 'Inter',
+  },
+  'editorial-authority': {
+    name: 'Editorial Authority',
+    desc: 'Restrained authority. Serif headlines.',
+    bg: '#F8F9FA', foreground: '#111827', accent: '#1A1AFF',
+    fontHeading: 'Cormorant Garamond', fontBody: 'Inter',
+  },
+  'organic-warm': {
+    name: 'Organic Warm',
+    desc: 'Warmth of hands. Paper texture, cream tone.',
+    bg: '#FAF7F2', foreground: '#2C1810', accent: '#C26B3B',
+    fontHeading: 'Lora', fontBody: 'Source Sans 3',
+  },
+  'luxury-minimal': {
+    name: 'Luxury Minimal',
+    desc: 'Silence is luxury. Extreme whitespace.',
+    bg: '#FFFFFF', foreground: '#171717', accent: '#B8860B',
+    fontHeading: 'Cormorant', fontBody: 'Inter',
+  },
+  'brutalist-raw': {
+    name: 'Brutalist Raw',
+    desc: 'Raw shock. Hard shadow, thick border.',
+    bg: '#FFFFFF', foreground: '#000000', accent: '#FF0000',
+    fontHeading: 'Oswald', fontBody: 'Inter',
+  },
+  'retro-analog': {
+    name: 'Retro Analog',
+    desc: 'Cassette tape nostalgia. Faded colors.',
+    bg: '#F2E8D5', foreground: '#2A2218', accent: '#D45B3A',
+    fontHeading: 'Space Mono', fontBody: 'IBM Plex Sans',
+  },
+  'playful-pop': {
+    name: 'Playful Pop',
+    desc: 'Colorful pop art. Rounded corners.',
+    bg: '#FFF8E7', foreground: '#2B2D42', accent: '#EF476F',
+    fontHeading: 'Fredoka', fontBody: 'Nunito',
+  },
+};
+
+// ===== SAMPLE SLIDES =====
+const SAMPLE_SLIDES = [
+  {
+    title: 'AI Video Automation',
+    points: ['Script to PPT in seconds', 'Multiple design themes'],
+    visualType: 'title',
+    templateId: 'title-default',
+    notes: null,
+    textPosition: 5,
+    imageUrl: null,
+    imagePrompt: null,
+  },
+  {
+    title: 'Key Features',
+    points: ['8 design themes', '9-grid text positioning', 'Remotion MP4 rendering', 'YouTube-style preview'],
+    visualType: 'list',
+    templateId: 'list-default',
+    notes: null,
+    textPosition: 4,
+    imageUrl: null,
+    imagePrompt: null,
+  },
+  {
+    title: '"The best way to predict the future is to create it."',
+    points: ['Peter Drucker'],
+    visualType: 'quote',
+    templateId: 'quote-default',
+    notes: null,
+    textPosition: 5,
+    imageUrl: null,
+    imagePrompt: null,
+  },
+  {
+    title: 'Before vs After',
+    points: ['Manual PPT creation', 'AI-powered automation', 'Hours of work', 'Minutes of work', 'Inconsistent design', 'Theme-based consistency'],
+    visualType: 'comparison',
+    templateId: 'comparison-default',
+    notes: null,
+    textPosition: 5,
+    imageUrl: null,
+    imagePrompt: null,
+  },
+  {
+    title: 'Get Started Today',
+    points: ['Try Claude PPT Skill now'],
+    visualType: 'title',
+    templateId: 'title-default',
+    notes: null,
+    textPosition: 5,
+    imageUrl: null,
+    imagePrompt: null,
+  },
+];
+
+// ===== STATE =====
+let slides = JSON.parse(JSON.stringify(SAMPLE_SLIDES));
+let currentIndex = 0;
+let currentThemeId = 'editorial-authority';
+let isPlaying = false;
+let playInterval = null;
+
+// ===== POSITION UTILS =====
+function getPositionCSS(pos) {
+  const row = Math.ceil(pos / 3);
+  const col = ((pos - 1) % 3) + 1;
+  const jMap = { 1: 'flex-start', 2: 'center', 3: 'flex-end' };
+  const aMap = { 1: 'flex-start', 2: 'center', 3: 'flex-end' };
+  const tMap = { 1: 'left', 2: 'center', 3: 'right' };
+  return {
+    justifyContent: jMap[row],
+    alignItems: aMap[col],
+    textAlign: tMap[col],
+  };
+}
+
+// ===== RENDER =====
+function render() {
+  renderSlide();
+  renderThumbnails();
+  renderGrid();
+  renderEditor();
+  renderThemes();
+  renderJson();
+  updateProgress();
+  updateCounter();
+}
+
+function renderSlide() {
+  const slide = slides[currentIndex];
+  const theme = THEMES[currentThemeId];
+  const display = document.getElementById('slideDisplay');
+  const content = document.getElementById('slideContent');
+
+  // Background
+  display.style.backgroundColor = theme.bg;
+
+  // Remove old image elements
+  display.querySelectorAll('.slide-image-bg, .slide-image-overlay').forEach(el => el.remove());
+
+  // Image background
+  if (slide.imageUrl) {
+    const img = document.createElement('img');
+    img.className = 'slide-image-bg';
+    img.src = slide.imageUrl;
+    img.alt = '';
+    display.insertBefore(img, content);
+
+    const overlay = document.createElement('div');
+    overlay.className = 'slide-image-overlay';
+    display.insertBefore(overlay, content);
+  }
+
+  // Position
+  const pos = getPositionCSS(slide.textPosition || 5);
+  content.style.justifyContent = pos.justifyContent;
+  content.style.alignItems = pos.alignItems;
+  content.style.textAlign = pos.textAlign;
+
+  const hasImage = !!slide.imageUrl;
+  const titleColor = hasImage ? '#FFFFFF' : theme.accent;
+  const textColor = hasImage ? 'rgba(255,255,255,0.9)' : theme.foreground;
+  const bulletColor = hasImage ? '#FFFFFF' : theme.accent;
+
+  // Content by template
+  let html = '';
+
+  if (slide.templateId === 'quote-default') {
+    display.style.backgroundColor = hasImage ? '#000' : theme.accent;
+    html = `
+      <div class="slide-quote-mark" style="color:rgba(255,255,255,0.3);">&ldquo;</div>
+      <div class="slide-title" contenteditable="true"
+           style="color:#fff;font-family:'${theme.fontHeading}',serif;font-size:clamp(14px,2.4vw,36px);font-weight:500;line-height:1.6;"
+           oninput="onInlineEdit('title',this.innerText)">${escHtml(slide.title)}</div>
+      ${slide.points[0] ? `<div class="slide-quote-source" style="color:rgba(255,255,255,0.7);font-family:'${theme.fontBody}',sans-serif;">&mdash; ${escHtml(slide.points[0])}</div>` : ''}
+    `;
+  } else if (slide.templateId === 'comparison-default') {
+    const left = slide.points.filter((_, i) => i % 2 === 0);
+    const right = slide.points.filter((_, i) => i % 2 === 1);
+    html = `
+      <div class="slide-title" contenteditable="true"
+           style="color:${titleColor};font-family:'${theme.fontHeading}',sans-serif;width:100%;margin-bottom:0.8em;"
+           oninput="onInlineEdit('title',this.innerText)">${escHtml(slide.title)}</div>
+      <div style="display:flex;gap:5%;width:100%;flex:1;">
+        <div style="flex:1;">
+          ${left.map(p => `<div style="font-size:clamp(10px,1.4vw,24px);color:${titleColor};margin-bottom:0.4em;font-family:'${theme.fontBody}',sans-serif;">${escHtml(p)}</div>`).join('')}
+        </div>
+        <div style="width:2px;background:${hasImage ? 'rgba(255,255,255,0.3)' : '#E2E8F0'};"></div>
+        <div style="flex:1;">
+          ${right.map(p => `<div style="font-size:clamp(10px,1.4vw,24px);color:${textColor};margin-bottom:0.4em;font-family:'${theme.fontBody}',sans-serif;">${escHtml(p)}</div>`).join('')}
+        </div>
+      </div>
+    `;
+  } else if (slide.templateId === 'title-default') {
+    html = `
+      <div class="slide-title" contenteditable="true"
+           style="color:${titleColor};font-family:'${theme.fontHeading}',sans-serif;font-size:clamp(20px,3.4vw,64px);"
+           oninput="onInlineEdit('title',this.innerText)">${escHtml(slide.title)}</div>
+      ${slide.points[0] ? `<div style="font-size:clamp(11px,1.8vw,28px);color:${textColor};opacity:0.7;margin-top:0.5em;font-family:'${theme.fontBody}',sans-serif;">${escHtml(slide.points[0])}</div>` : ''}
+    `;
+  } else {
+    // list-default, chart-default, image-default, timeline-default
+    html = `
+      <div class="slide-title" contenteditable="true"
+           style="color:${titleColor};font-family:'${theme.fontHeading}',sans-serif;margin-bottom:0.8em;"
+           oninput="onInlineEdit('title',this.innerText)">${escHtml(slide.title)}</div>
+      <ul class="slide-points">
+        ${slide.points.map((p, i) => `
+          <li>
+            <div class="bullet" style="background:${bulletColor};"></div>
+            <span contenteditable="true" oninput="onInlinePointEdit(${i},this.innerText)" style="color:${textColor};font-family:'${theme.fontBody}',sans-serif;">${escHtml(p)}</span>
+          </li>
+        `).join('')}
+      </ul>
+    `;
+  }
+
+  content.innerHTML = html;
+}
+
+function renderThumbnails() {
+  const container = document.getElementById('thumbnails');
+  const theme = THEMES[currentThemeId];
+  container.innerHTML = slides.map((s, i) => {
+    const isActive = i === currentIndex;
+    const hasImg = !!s.imageUrl;
+    const bg = hasImg ? '#333' : (s.templateId === 'quote-default' ? theme.accent : theme.bg);
+    const fg = hasImg ? '#fff' : (s.templateId === 'quote-default' ? '#fff' : theme.foreground);
+    return `
+      <div class="thumb ${isActive ? 'active' : ''}" onclick="goToSlide(${i})">
+        <div class="thumb-preview" style="background:${bg};color:${fg};">
+          <div class="thumb-title" style="color:${s.templateId === 'quote-default' ? '#fff' : theme.accent};">${escHtml(s.title)}</div>
+          ${s.points.slice(0, 2).map(p => `<div class="thumb-point">${escHtml(p)}</div>`).join('')}
+        </div>
+        <div class="thumb-label">${i + 1}. ${s.templateId.replace('-default', '')}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderGrid() {
+  const container = document.getElementById('gridSelector');
+  const current = slides[currentIndex].textPosition || 5;
+  container.innerHTML = '';
+  for (let i = 1; i <= 9; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'grid-cell' + (i === current ? ' active' : '');
+    cell.textContent = i;
+    cell.onclick = () => {
+      slides[currentIndex].textPosition = i;
+      render();
+    };
+    container.appendChild(cell);
+  }
+}
+
+function renderEditor() {
+  const slide = slides[currentIndex];
+  const theme = THEMES[currentThemeId];
+  document.getElementById('editSlideNum').textContent = `#${currentIndex + 1}`;
+  document.getElementById('editTitle').value = slide.title;
+  document.getElementById('editTemplate').value = slide.templateId;
+  document.getElementById('editPoints').value = slide.points.join('\n');
+  document.getElementById('editImageUrl').value = slide.imageUrl || '';
+  document.getElementById('colorBg').value = theme.bg.length === 7 ? theme.bg : '#ffffff';
+  document.getElementById('colorAccent').value = theme.accent.length === 7 ? theme.accent : '#3b82f6';
+  document.getElementById('colorFg').value = theme.foreground.length === 7 ? theme.foreground : '#111827';
+}
+
+function renderThemes() {
+  const grid = document.getElementById('themeGrid');
+  grid.innerHTML = Object.entries(THEMES).map(([id, t]) => `
+    <div class="theme-card ${id === currentThemeId ? 'active' : ''}" onclick="selectTheme('${id}')">
+      <div class="theme-card-preview">
+        <div class="swatch" style="background:${t.bg};"></div>
+        <div class="swatch" style="background:${t.accent};"></div>
+        <div class="swatch" style="background:${t.foreground};"></div>
+      </div>
+      <div class="theme-card-name">${t.name}</div>
+      <div class="theme-card-desc">${t.desc}</div>
+    </div>
+  `).join('');
+}
+
+function renderJson() {
+  const theme = THEMES[currentThemeId];
+  const output = {
+    theme: { id: currentThemeId, ...theme },
+    slides: slides,
+    metadata: {
+      totalSlides: slides.length,
+      estimatedDuration: slides.length * 5,
+    },
+  };
+  document.getElementById('jsonOutput').textContent = JSON.stringify(output, null, 2);
+}
+
+function updateProgress() {
+  const pct = slides.length > 1 ? (currentIndex / (slides.length - 1)) * 100 : 0;
+  document.getElementById('ytProgressFill').style.width = pct + '%';
+  const currentTime = currentIndex * 5;
+  const totalTime = slides.length * 5;
+  document.getElementById('ytTime').textContent =
+    formatTime(currentTime) + ' / ' + formatTime(totalTime);
+}
+
+function updateCounter() {
+  document.getElementById('slideCounter').textContent =
+    (currentIndex + 1) + ' / ' + slides.length;
+  document.getElementById('videoTitle').textContent =
+    slides[0] ? slides[0].title : 'PPT Slide Preview';
+}
+
+// ===== NAVIGATION =====
+function goToSlide(i) {
+  currentIndex = Math.max(0, Math.min(slides.length - 1, i));
+  render();
+}
+
+function prevSlide() {
+  if (currentIndex > 0) goToSlide(currentIndex - 1);
+}
+
+function nextSlide() {
+  if (currentIndex < slides.length - 1) goToSlide(currentIndex + 1);
+}
+
+function togglePlay() {
+  isPlaying = !isPlaying;
+  document.getElementById('playBtn').innerHTML = isPlaying ? '&#9646;&#9646;' : '&#9654;';
+  if (isPlaying) {
+    playInterval = setInterval(() => {
+      if (currentIndex < slides.length - 1) {
+        nextSlide();
+      } else {
+        togglePlay(); // stop at end
+      }
+    }, 5000);
+  } else {
+    clearInterval(playInterval);
+    playInterval = null;
+  }
+}
+
+function onProgressClick(e) {
+  const rect = e.currentTarget.getBoundingClientRect();
+  const pct = (e.clientX - rect.left) / rect.width;
+  const idx = Math.round(pct * (slides.length - 1));
+  goToSlide(idx);
+}
+
+// ===== EDITING =====
+function onEditTitle(val) {
+  slides[currentIndex].title = val;
+  render();
+}
+
+function onEditTemplate(val) {
+  slides[currentIndex].templateId = val;
+  slides[currentIndex].visualType = val.replace('-default', '');
+  render();
+}
+
+function onEditPoints(val) {
+  slides[currentIndex].points = val.split('\n').filter(l => l.trim());
+  render();
+}
+
+function onEditImageUrl(val) {
+  slides[currentIndex].imageUrl = val || null;
+  render();
+}
+
+function onInlineEdit(field, val) {
+  slides[currentIndex][field] = val;
+  // Sync editor inputs without full re-render
+  document.getElementById('editTitle').value = val;
+  renderThumbnails();
+  renderJson();
+  updateCounter();
+}
+
+function onInlinePointEdit(idx, val) {
+  slides[currentIndex].points[idx] = val;
+  document.getElementById('editPoints').value = slides[currentIndex].points.join('\n');
+  renderThumbnails();
+  renderJson();
+}
+
+function onColorChange() {
+  // Override current theme colors (creates a custom variant)
+  const bg = document.getElementById('colorBg').value;
+  const accent = document.getElementById('colorAccent').value;
+  const fg = document.getElementById('colorFg').value;
+  THEMES[currentThemeId] = {
+    ...THEMES[currentThemeId],
+    bg, accent, foreground: fg,
+  };
+  render();
+}
+
+function selectTheme(id) {
+  currentThemeId = id;
+  render();
+}
+
+// ===== EXPORT =====
+function exportJson() {
+  const theme = THEMES[currentThemeId];
+  const output = {
+    theme: { id: currentThemeId, ...theme },
+    slides: slides,
+    metadata: {
+      totalSlides: slides.length,
+      estimatedDuration: slides.length * 5,
+    },
+  };
+  const blob = new Blob([JSON.stringify(output, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'ppt-slides.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function copyJson() {
+  const text = document.getElementById('jsonOutput').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'Copy';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+}
+
+// ===== UTILS =====
+function escHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+
+function formatTime(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return m + ':' + String(s).padStart(2, '0');
+}
+
+// ===== KEYBOARD =====
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+  if (e.key === 'ArrowLeft') { prevSlide(); e.preventDefault(); }
+  if (e.key === 'ArrowRight') { nextSlide(); e.preventDefault(); }
+  if (e.key === ' ') { togglePlay(); e.preventDefault(); }
+});
+
+// ===== INIT =====
+render();
+</script>
+
+</body>
+</html>
