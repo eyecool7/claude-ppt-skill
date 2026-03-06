@@ -38,7 +38,7 @@ rm -rf /tmp/claude-ppt-skill
 ### 방법 2: 수동 복사
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/claude-ppt-skill /tmp/claude-ppt-skill
+git clone https://github.com/eyecool7/claude-ppt-skill /tmp/claude-ppt-skill
 
 # 스킬 복사
 cp -r /tmp/claude-ppt-skill/.claude/skills/ppt .claude/skills/
