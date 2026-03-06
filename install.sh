@@ -11,7 +11,12 @@ echo "🎬 Claude PPT Skill 설치"
 echo "   대상: $TARGET_DIR"
 echo ""
 
-# 1. Copy skill
+# 1. Copy /ppt command
+mkdir -p "$TARGET_DIR/.claude/commands"
+cp "$SCRIPT_DIR/commands/ppt.md" "$TARGET_DIR/.claude/commands/ppt.md"
+echo "✅ /ppt 커맨드 → .claude/commands/"
+
+# 2. Copy skill
 mkdir -p "$TARGET_DIR/.claude/skills/ppt"
 cp "$SCRIPT_DIR/.claude/skills/ppt/SKILL.md" "$TARGET_DIR/.claude/skills/ppt/SKILL.md"
 echo "✅ SKILL.md → .claude/skills/ppt/"
@@ -37,6 +42,5 @@ echo ""
 echo "🎉 설치 완료!"
 echo ""
 echo "사용법:"
-echo "  1. Claude Code에서: PPT 만들어줘"
-echo "  2. 또는 브라우저에서 미리보기: open .claude/ppt-preview.html"
+echo "  Claude Code에서: /ppt"
 echo ""
